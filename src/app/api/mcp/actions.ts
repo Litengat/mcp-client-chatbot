@@ -12,6 +12,16 @@ export async function selectMcpClientsAction() {
   });
 }
 
+export async function selectMcpClientAction(name: string) {
+  const client = mcpClientsManager
+    .getClients()
+    .find((client) => client.getInfo().name === name);
+  if (!client) {
+    throw new Error("Client not found");
+  }
+  return client.getInfo();
+}
+
 const validateConfig = (config: unknown) => {
   if (!isMaybeMCPServerConfig(config)) {
     throw new Error("Invalid MCP server configuration");
@@ -80,4 +90,27 @@ export async function updateMcpClientAction(
   config: MCPServerConfig,
 ) {
   await mcpClientsManager.refreshClient(name, config);
+}
+
+export async function callMcpToolAction(
+  mcpName: string,
+  toolName: string,
+  input?: unknown,
+) {
+  const client = mcpClientsManager
+    .getClients()
+    .find((client) => client.getInfo().name === mcpName);
+  if (!client) {
+    throw new Error("Client not found");
+  }
+  return client.callTool(toolName, input).then((res) => {
+    if (res?.isError) {
+      throw new Error(
+        res.content?.[0]?.text ??
+          JSON.stringify(res.content, null, 2) ??
+          "Unknown error",
+      );
+    }
+    return res;
+  });
 }

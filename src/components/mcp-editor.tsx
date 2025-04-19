@@ -37,7 +37,6 @@ const STDIO_ARGS_ENV_PLACEHOLDER = `/** STDIO Example */
   "args": ["index.js"],
   "env": {
     "OPENAI_API_KEY": "sk-...",
-    "OPENAI_MODEL": "gpt-4o"
   }
 }
 
@@ -47,17 +46,7 @@ const STDIO_ARGS_ENV_PLACEHOLDER = `/** STDIO Example */
   "headers": {
     "Authorization": "Bearer sk-..."
   }
-}
-
-`;
-
-// Component to display required field labels
-const RequiredLabel = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex items-center">
-    {children}
-    <span className="text-destructive ml-1">*</span>
-  </div>
-);
+}`;
 
 export default function MCPEditor({
   initialConfig,
@@ -135,7 +124,7 @@ export default function MCPEditor({
       if (isDiff) {
         convertDebounce(
           () => setJsonString(JSON.stringify(result.value, null, 2)),
-          1000,
+          5000,
         );
       }
     } else if (data.trim() !== "") {
@@ -152,9 +141,8 @@ export default function MCPEditor({
     <div className="flex flex-col space-y-6">
       {/* Name field */}
       <div className="space-y-2">
-        <RequiredLabel>
-          <Label htmlFor="name">Name</Label>
-        </RequiredLabel>
+        <Label htmlFor="name">Name</Label>
+
         <Input
           id="name"
           value={name}
@@ -165,21 +153,13 @@ export default function MCPEditor({
       </div>
       <div className="space-y-4">
         <div className="space-y-2">
-          <RequiredLabel>
-            <Label htmlFor="config">Config</Label>
-          </RequiredLabel>
+          <Label htmlFor="config">Config</Label>
         </div>
 
         {/* Split view for config editor */}
         <div className="grid grid-cols-2 gap-4">
           {/* Left side: Textarea for editing */}
           <div className="space-y-2">
-            <Label
-              htmlFor="config-editor"
-              className="text-xs text-muted-foreground"
-            >
-              JSON Editor
-            </Label>
             <Textarea
               id="config-editor"
               value={jsonString}
@@ -191,13 +171,13 @@ export default function MCPEditor({
 
           {/* Right side: JSON view */}
           <div className="space-y-2">
-            <Label
-              htmlFor="config-view"
-              className="text-xs text-muted-foreground"
-            >
-              JSON Preview
-            </Label>
-            <div className="border rounded-md p-4 h-[40vh] overflow-auto relative">
+            <div className="border border-input rounded-md p-4 h-[40vh] overflow-auto relative">
+              <Label
+                htmlFor="config-view"
+                className="text-xs text-muted-foreground mb-2"
+              >
+                preview
+              </Label>
               <JsonView data={config} initialExpandDepth={3} />
               {jsonError && jsonString && (
                 <div className="absolute w-full bottom-0 right-0 px-2 pb-2 animate-in fade-in-0 duration-300">

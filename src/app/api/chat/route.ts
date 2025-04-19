@@ -7,7 +7,7 @@ import {
 } from "ai";
 
 import { generateTitleFromUserMessageAction } from "@/app/api/chat/actions";
-import { customModelProvider, isReasoningModel } from "lib/ai/models";
+import { customModelProvider, isToolCallUnsupported } from "lib/ai/models";
 
 import { getMockUserSession } from "lib/mock";
 import { mcpClientsManager } from "../mcp/mcp-manager";
@@ -28,12 +28,14 @@ export async function POST(request: Request) {
       id,
       messages,
       model: modelName,
-      mode,
+      action,
+      activeTool,
     } = json as {
       id?: string;
       messages: Array<UIMessage>;
       model: string;
-      mode?: "update-assistant" | "";
+      action?: "update-assistant" | "";
+      activeTool?: boolean;
     };
 
     let thread = id ? await selectThread(id) : null;
@@ -71,14 +73,15 @@ export async function POST(request: Request) {
           system: SYSTEM_TIME_PROMPT,
           messages,
           experimental_transform: smoothStream({ chunking: "word" }),
-          tools: isReasoningModel(model) ? undefined : tools,
+          tools: isToolCallUnsupported(model) ? undefined : tools,
           maxSteps: 5,
+          toolChoice: activeTool ? "auto" : "none",
           onFinish: async ({ response }) => {
             const [, assistantMessage] = appendResponseMessages({
               messages: [message],
               responseMessages: response.messages,
             });
-            if (mode !== "update-assistant") {
+            if (action !== "update-assistant") {
               await insertMessage({
                 threadId: thread.id,
                 model: null,

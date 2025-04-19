@@ -1,9 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
-
 import { cn } from "lib/utils";
-import { CornerRightUp, Paperclip, Pause } from "lucide-react";
+import { Check, CornerRightUp, Paperclip, Pause, Wrench } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { Button } from "ui/button";
 import { notImplementedToast } from "ui/shared-toast";
@@ -13,6 +11,8 @@ import { SelectModel } from "./select-model";
 import { appStore } from "@/app/store";
 import { useShallow } from "zustand/shallow";
 import { customModelProvider } from "lib/ai/models";
+
+import { McpListCombo } from "./mcp-list-combo";
 
 interface PromptInputProps {
   placeholder?: string;
@@ -30,13 +30,12 @@ export default function PromptInput({
   threadId,
   input = "",
   setInput,
-  onSubmit,
   append,
   onStop,
   isLoading,
 }: PromptInputProps) {
-  const [appStoreMutate, model] = appStore(
-    useShallow((state) => [state.mutate, state.model]),
+  const [appStoreMutate, model, activeTool] = appStore(
+    useShallow((state) => [state.mutate, state.model, state.activeTool]),
   );
   const editorRef = useRef<HTMLTextAreaElement>(null);
 
@@ -68,6 +67,7 @@ export default function PromptInput({
     setInput?.("");
     setPastedContents([]);
     editorRef.current.style.height = "";
+
     append!({
       role: "user",
       content: "",
@@ -101,14 +101,7 @@ export default function PromptInput({
   };
 
   return (
-    <motion.div
-      key="overview"
-      className="max-w-3xl mx-auto"
-      initial={{ opacity: 0, scale: 0.98 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.98 }}
-      transition={{ delay: 0.1 }}
-    >
+    <div className="max-w-3xl mx-auto fade-in animate-in">
       <div
         className="z-10 mx-auto w-full max-w-3xl relative"
         onClick={() => editorRef.current?.focus()}
@@ -168,11 +161,21 @@ export default function PromptInput({
                 >
                   <Button size={"sm"} variant={"ghost"}>
                     {model}
-                    {/* <ChevronsUpDown /> */}
                   </Button>
                 </SelectModel>
                 <div className="flex-1" />
-
+                <McpListCombo>
+                  <Button
+                    variant={activeTool ? "secondary" : "ghost"}
+                    className={cn(
+                      !activeTool && "text-muted-foreground",
+                      "font-semibold mr-1",
+                    )}
+                  >
+                    {activeTool && <Check size={3.5} />}
+                    MCP Tools
+                  </Button>
+                </McpListCombo>
                 <Button
                   onClick={() => {
                     if (isLoading) {
@@ -204,6 +207,6 @@ export default function PromptInput({
           </div>
         </fieldset>
       </div>
-    </motion.div>
+    </div>
   );
 }

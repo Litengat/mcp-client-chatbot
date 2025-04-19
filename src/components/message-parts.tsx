@@ -32,12 +32,12 @@ import { safe } from "ts-safe";
 
 type MessagePart = UIMessage["parts"][number];
 
-type UserMessagePart = Extract<MessagePart, { type: "text" }>;
+type TextMessagePart = Extract<MessagePart, { type: "text" }>;
 type AssistMessagePart = Extract<MessagePart, { type: "text" }>;
 type ToolMessagePart = Extract<MessagePart, { type: "tool-invocation" }>;
 
 interface UserMessagePartProps {
-  part: UserMessagePart;
+  part: TextMessagePart;
   isLast: boolean;
   message: UIMessage;
   setMessages: UseChatHelpers["setMessages"];
@@ -89,7 +89,7 @@ export const UserMessagePart = ({
         })}
       >
         {isLast ? (
-          <pre className="whitespace-pre-wrap text-sm">{part.text}</pre>
+          <p className="whitespace-pre-wrap text-sm">{part.text}</p>
         ) : (
           <PastesContentCard initialContent={part.text} readonly />
         )}
@@ -164,7 +164,7 @@ export const AssistMessagePart = ({
         reload({
           body: {
             model,
-            mode: "update-assistant",
+            action: "update-assistant",
             id: threadId,
           },
         }),
@@ -243,7 +243,7 @@ export const ToolMessagePart = ({ part }: ToolMessagePartProps) => {
         <Button
           variant="outline"
           className={cn(
-            "flex flex-row gap-2 items-center text-muted-foreground",
+            "flex flex-row gap-2 justify-between items-center text-muted-foreground min-w-44",
             isLoading && "animate-pulse",
           )}
         >
@@ -296,10 +296,12 @@ export const ToolMessagePart = ({ part }: ToolMessagePartProps) => {
 
 export function ReasoningPart({
   reasoning,
+  isThinking,
 }: {
   reasoning: string;
+  isThinking?: boolean;
 }) {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const variants = {
     collapsed: {
@@ -317,38 +319,57 @@ export function ReasoningPart({
   };
 
   return (
-    <div className="flex flex-col">
-      <div className="flex flex-row gap-2 items-center">
+    <div
+      className="flex flex-col cursor-pointer"
+      onClick={() => {
+        setIsExpanded(!isExpanded);
+      }}
+    >
+      <div className="flex flex-row gap-2 items-center text-ring hover:text-primary transition-colors">
         <div className="font-medium">Reasoned for a few seconds</div>
         <button
           data-testid="message-reasoning-toggle"
           type="button"
           className="cursor-pointer"
-          onClick={() => {
-            setIsExpanded(!isExpanded);
-          }}
         >
-          <ChevronDownIcon />
+          <ChevronDownIcon size={16} />
         </button>
       </div>
 
-      <AnimatePresence initial={false}>
-        {isExpanded && (
-          <motion.div
-            data-testid="message-reasoning"
-            key="content"
-            initial="collapsed"
-            animate="expanded"
-            exit="collapsed"
-            variants={variants}
-            transition={{ duration: 0.2, ease: "easeInOut" }}
-            style={{ overflow: "hidden" }}
-            className="pl-4 text-muted-foreground border-l flex flex-col gap-4"
-          >
-            <Markdown>{reasoning}</Markdown>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div className="pl-4">
+        <AnimatePresence initial={false}>
+          {isExpanded && (
+            <motion.div
+              data-testid="message-reasoning"
+              key="content"
+              initial="collapsed"
+              animate="expanded"
+              exit="collapsed"
+              variants={variants}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
+              style={{ overflow: "hidden" }}
+              className="pl-6 text-muted-foreground border-l flex flex-col gap-4"
+            >
+              <Markdown>{reasoning}</Markdown>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+      {isThinking && (
+        <motion.div
+          className="h-2 w-2 rounded-full bg-primary mt-4"
+          animate={{
+            scale: [1, 1.5, 1],
+            opacity: [0.6, 1, 0.6],
+          }}
+          transition={{
+            duration: 1.5,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 0,
+          }}
+        />
+      )}
     </div>
   );
 }

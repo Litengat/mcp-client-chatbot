@@ -13,9 +13,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "ui/popover";
 
 interface SelectModelProps {
   onSelect: (model: string) => void;
+  align?: "start" | "end";
   providers: {
     provider: string;
-    models: { name: string; isReasoningModel: boolean }[];
+    models: { name: string; isToolCallUnsupported: boolean }[];
   }[];
   model: string;
 }
@@ -26,9 +27,12 @@ export const SelectModel = (props: PropsWithChildren<SelectModelProps>) => {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{props.children}</PopoverTrigger>
-      <PopoverContent className="p-0 w-[280px] bg-background" align="start">
+      <PopoverContent
+        className="p-0 w-[280px] bg-background"
+        align={props.align || "start"}
+      >
         <Command
-          className="rounded-lg relative shadow-md  bg-background"
+          className="rounded-lg relative shadow-md  bg-background h-80"
           value={props.model}
           onClick={(e) => e.stopPropagation()}
         >
@@ -49,7 +53,7 @@ export const SelectModel = (props: PropsWithChildren<SelectModelProps>) => {
                       value={model.name}
                     >
                       <span className="px-2">{model.name}</span>
-                      {model.isReasoningModel && (
+                      {model.isToolCallUnsupported && (
                         <div className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
                           No tools
                         </div>

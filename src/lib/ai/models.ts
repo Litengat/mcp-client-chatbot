@@ -4,6 +4,7 @@ import { azure } from '@ai-sdk/azure';
 import { google } from "@ai-sdk/google";
 import { anthropic } from "@ai-sdk/anthropic";
 import { xai } from "@ai-sdk/xai";
+
 import {
   extractReasoningMiddleware,
   LanguageModel,
@@ -27,6 +28,7 @@ export const allModels = {
     "4o (azure)": azure("4o"),
     "4o-mini (azure)": azure("4o-mini"),
     "o3-mini (azure)": azure("o3-mini"),
+
 
   },
   // openai: {
@@ -63,7 +65,7 @@ export const allModels = {
   // },
 } as const;
 
-export const isReasoningModel = (model: LanguageModel) => {
+export const isToolCallUnsupported = (model: LanguageModel) => {
   return [
     allModels.azure["o3-mini"],
     allModels.azure["4o-mini"],
@@ -85,7 +87,9 @@ export const customModelProvider = {
       models: Object.keys(allModels[provider]).map((name) => {
         return {
           name,
-          isReasoningModel: isReasoningModel(allModels[provider][name]),
+          isToolCallUnsupported: isToolCallUnsupported(
+            allModels[provider][name],
+          ),
         };
       }),
     };

@@ -24,8 +24,8 @@ type Props = {
 export default function ChatBot({ threadId, initialMessages }: Props) {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
-  const [appStoreMutate, model] = appStore(
-    useShallow((state) => [state.mutate, state.model]),
+  const [appStoreMutate, model, activeTool] = appStore(
+    useShallow((state) => [state.mutate, state.model, state.activeTool]),
   );
 
   const {
@@ -41,7 +41,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
   } = useChat({
     id: threadId,
     api: "/api/chat",
-    body: { id: threadId, model },
+    body: { id: threadId, model, activeTool },
     initialMessages: initialMessages,
     sendExtraMessageFields: true,
     generateId: generateUUID,
@@ -108,6 +108,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
 
   return (
     <div className="flex flex-col min-w-0 relative h-full">
+      <div className="absolute top-0 left-0 h-12 w-full bg-gradient-to-b from-background to-transparent" />
       {messages.length > 0 ? (
         <>
           <div
