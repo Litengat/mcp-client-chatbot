@@ -17,6 +17,10 @@ export type ChatMessage = {
   createdAt: Date;
 };
 
+export type ChatMessageAnnotation = {
+  requiredTools?: string[];
+};
+
 export type ChatService = {
   insertThread(
     thread: PartialBy<ChatThread, "id" | "createdAt">,
@@ -40,4 +44,5 @@ export type ChatService = {
   ): Promise<ChatMessage>;
 
   deleteMessagesByChatIdAfterTimestamp(messageId: string): Promise<void>;
+  deleteAllThreads(userId: string): Promise<void>;
 };

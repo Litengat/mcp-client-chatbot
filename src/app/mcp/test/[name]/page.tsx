@@ -11,11 +11,18 @@ import {
   ChevronUp,
   Loader2,
   Search,
+  WandSparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import useSWR from "swr";
-import { useEffect, useMemo, useState } from "react";
+import {
+  PropsWithChildren,
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+} from "react";
 import { Input } from "ui/input";
 import { Separator } from "ui/separator";
 import {
@@ -31,7 +38,10 @@ import { Alert, AlertDescription, AlertTitle } from "ui/alert";
 import { safeJSONParse, isNull, isString } from "lib/utils";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogPortal,
   DialogTitle,
@@ -39,6 +49,20 @@ import {
 } from "ui/dialog";
 import { Badge } from "ui/badge";
 import { handleErrorWithToast } from "ui/shared-toast";
+import { generateExampleToolSchemaAction } from "@/app/api/chat/actions";
+import { appStore } from "@/app/store";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "ui/select";
+import { customModelProvider } from "lib/ai/models";
+import { MCPToolInfo } from "app-types/mcp";
+import { Label } from "ui/label";
+import { safe } from "ts-safe";
+import { useObjectState } from "@/hooks/use-object-reducer";
 
 // Type definitions
 type SchemaProperty = {
@@ -229,8 +253,119 @@ const ToolDescription = ({
   </div>
 );
 
+type GenerateExampleInputJsonDialogProps = {
+  toolInfo: MCPToolInfo;
+  onGenerated: (json: string) => void;
+};
+
+const GenerateExampleInputJsonDialog = ({
+  toolInfo,
+  children,
+  onGenerated,
+}: PropsWithChildren<GenerateExampleInputJsonDialogProps>) => {
+  const currentModelName = appStore((state) => state.model);
+
+  const [option, setOption] = useObjectState({
+    open: false,
+    model: currentModelName,
+    prompt: "",
+    loading: false,
+  });
+  const modelList = useMemo(() => {
+    return customModelProvider.modelsInfo.flatMap((v) =>
+      v.models.map((v) => v.name),
+    );
+  }, []);
+
+  const generateExampleSchema = useCallback(() => {
+    safe(() => setOption({ loading: true }))
+      .map(() =>
+        generateExampleToolSchemaAction({
+          modelName: option.model,
+          toolInfo: toolInfo,
+          prompt: option.prompt,
+        }),
+      )
+      .ifOk((result) => {
+        onGenerated(JSON.stringify(result, null, 2));
+      })
+      .ifOk(() => {
+        setOption({
+          loading: false,
+          prompt: "",
+          model: currentModelName,
+          open: false,
+        });
+      })
+      .ifFail(handleErrorWithToast);
+  }, [option, toolInfo, currentModelName, onGenerated]);
+
+  return (
+    <Dialog open={option.open} onOpenChange={(open) => setOption({ open })}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            <p>Generate Example Input JSON</p>
+          </DialogTitle>
+          <DialogDescription className="text-xs">
+            Enter a prompt to generate example input JSON for the selected tool.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-2 py-4 text-foreground">
+          <Label>Model</Label>
+          <Select
+            value={option.model}
+            onValueChange={(value) => setOption({ model: value })}
+          >
+            <SelectTrigger className="min-w-48">
+              <SelectValue placeholder="Select a model" />
+            </SelectTrigger>
+            <SelectContent>
+              {modelList.map((model) => (
+                <SelectItem key={model} value={model}>
+                  {model}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="my-2" />
+          <Label>
+            Prompt{" "}
+            <span className="text-muted-foreground text-xs">
+              {"("}optional{")"}
+            </span>
+          </Label>
+
+          <Textarea
+            disabled={option.loading}
+            className="resize-none h-28 placeholder:text-xs"
+            value={option.prompt}
+            onChange={(e) => setOption({ prompt: e.target.value })}
+            placeholder="e.g. What's the weather like in New York today?"
+          />
+        </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="ghost">Cancel</Button>
+          </DialogClose>
+
+          <Button variant="default" onClick={generateExampleSchema}>
+            {option.loading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              "Generate"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export default function Page() {
   const { name } = useParams();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedToolIndex, setSelectedToolIndex] = useState<number>(0);
   const [showFullDescription, setShowFullDescription] = useState(false);
@@ -427,10 +562,7 @@ export default function Page() {
                             <h5 className="text-xs font-medium">
                               Input Schema
                             </h5>
-                            <Dialog
-                              open={showInputSchema}
-                              onOpenChange={setShowInputSchema}
-                            >
+                            <Dialog>
                               <DialogTrigger asChild>
                                 <Button
                                   variant="ghost"
@@ -486,9 +618,23 @@ export default function Page() {
 
                         {/* JSON Input */}
                         <div className="space-y-2">
-                          <h5 className="text-xs font-medium mb-2 h-6 flex items-center">
-                            Input JSON
-                          </h5>
+                          <div className="flex justify-between items-center mb-2">
+                            <h5 className="text-xs font-medium flex items-center">
+                              Input JSON
+                            </h5>
+                            <GenerateExampleInputJsonDialog
+                              toolInfo={selectedTool}
+                              onGenerated={(json) => setJsonInput(json)}
+                            >
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-xs"
+                              >
+                                Generate Example
+                              </Button>
+                            </GenerateExampleInputJsonDialog>
+                          </div>
                           <Textarea
                             autoFocus
                             value={jsonInput}
@@ -557,7 +703,7 @@ export default function Page() {
                   ) : (
                     <div className="bg-secondary/30 p-4 rounded-md">
                       <p className="text-sm text-center text-muted-foreground">
-                        This tool doesn't have an input schema defined
+                        This tool doesn{"'"}t have an input schema defined
                       </p>
                     </div>
                   )}

@@ -3,6 +3,7 @@ import {
   createDataStreamResponse,
   smoothStream,
   streamText,
+  Tool,
   type UIMessage,
 } from "ai";
 
@@ -15,15 +16,26 @@ import { mcpClientsManager } from "../mcp/mcp-manager";
 import { chatService } from "lib/db/chat-service";
 import logger from "logger";
 import { SYSTEM_TIME_PROMPT } from "lib/ai/prompts";
+import { ChatMessageAnnotation } from "app-types/chat";
 
 const { insertMessage, insertThread, selectThread } = chatService;
 
 export const maxDuration = 120;
 
+const filterToolsByMentions = (
+  mentions: string[],
+  tools: Record<string, Tool>,
+) => {
+  return Object.fromEntries(
+    Object.keys(tools)
+      .filter((tool) => mentions.some((mention) => tool.startsWith(mention)))
+      .map((tool) => [tool, tools[tool]]),
+  );
+};
+
 export async function POST(request: Request) {
   try {
     const json = await request.json();
-
     const {
       id,
       messages,
@@ -63,8 +75,18 @@ export async function POST(request: Request) {
       });
     }
 
+    const annotations: ChatMessageAnnotation[] =
+      (message.annotations as ChatMessageAnnotation[]) ?? [];
+
+    const requiredTools = annotations
+      .flatMap((annotation) => annotation.requiredTools)
+      .filter(Boolean) as string[];
+
     const tools = mcpClientsManager.tools();
+
     const model = customModelProvider.getModel(modelName);
+
+    const toolChoice = !activeTool ? "none" : "auto";
 
     return createDataStreamResponse({
       execute: (dataStream) => {
@@ -73,14 +95,19 @@ export async function POST(request: Request) {
           system: SYSTEM_TIME_PROMPT,
           messages,
           experimental_transform: smoothStream({ chunking: "word" }),
-          tools: isToolCallUnsupported(model) ? undefined : tools,
+          tools: isToolCallUnsupported(model)
+            ? undefined
+            : requiredTools.length
+              ? filterToolsByMentions(requiredTools, tools)
+              : tools,
           maxSteps: 5,
-          toolChoice: activeTool ? "auto" : "none",
+          toolChoice,
           onFinish: async ({ response }) => {
             const [, assistantMessage] = appendResponseMessages({
               messages: [message],
               responseMessages: response.messages,
             });
+
             if (action !== "update-assistant") {
               await insertMessage({
                 threadId: thread.id,
